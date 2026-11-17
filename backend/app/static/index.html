@@ -1,0 +1,1066 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Sistem Pemetaan & Rekomendasi Titik Pemancingan Pesisir Pamekasan - Alful Hilal</title>
+  
+  <!-- Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&display=swap" rel="stylesheet">
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Lucide Icons -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+  <!-- Chart.js for Tide Curve -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            figmaBg: '#090D16',
+            abyss: '#0B132B',
+            surface: '#0F1A30',
+            card: '#121F3A',
+            cardHover: '#16284B',
+            reef: '#1C2E52',
+            reefBorder: '#233863',
+            cyan: '#00E5FF',
+            teal: '#00B4D8',
+            amber: '#FFB300',
+            orangeAccent: '#FF9100',
+            strike: '#00E676',
+            danger: '#FF5252'
+          },
+          fontFamily: {
+            sans: ['Inter', 'sans-serif'],
+            mono: ['JetBrains Mono', 'monospace']
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    body {
+      background-color: #080D1A;
+      color: #E2E8F0;
+      font-family: 'Inter', sans-serif;
+      background-image: radial-gradient(rgba(0, 229, 255, 0.08) 1px, transparent 1px);
+      background-size: 24px 24px;
+    }
+    
+    @keyframes radarSweep {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+    .radar-sweep {
+      animation: radarSweep 4s linear infinite;
+      transform-origin: center center;
+    }
+
+    /* Figma Screen Frame Styling */
+    .figma-frame {
+      width: 390px;
+      min-width: 390px;
+      background: #0B1426;
+      border: 1px solid #1E3258;
+      border-radius: 36px;
+      overflow: hidden;
+      box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.8), 0 0 25px rgba(0, 229, 255, 0.12);
+      display: flex;
+      flex-direction: column;
+      position: relative;
+    }
+
+    .figma-frame.active-frame {
+      border: 2px solid #6366F1;
+      box-shadow: 0 0 0 4px rgba(99, 102, 241, 0.25), 0 25px 50px -12px rgba(0, 0, 0, 0.9);
+    }
+
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0B1426;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #1C2E52;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #00E5FF;
+    }
+  </style>
+</head>
+<body class="min-h-screen flex flex-col antialiased selection:bg-cyan selection:text-black">
+
+  <!-- Top Figma-Style Control Toolbar -->
+  <header class="border-b border-reef/80 bg-abyss/95 backdrop-blur sticky top-0 z-50 px-4 py-2.5">
+    <div class="max-w-[1720px] mx-auto flex items-center justify-between">
+      
+      <!-- Brand & Project Title -->
+      <div class="flex items-center space-x-3">
+        <div class="w-8 h-8 rounded-lg bg-cyan/15 border border-cyan/40 flex items-center justify-center text-cyan shadow-sm">
+          <i data-lucide="compass" class="w-4 h-4"></i>
+        </div>
+        <div>
+          <div class="flex items-center gap-2">
+            <h1 class="text-sm font-bold tracking-wide text-white">PESISIR PAMEKASAN • MOBILE GEOSPATIAL UI</h1>
+            <span class="text-[10px] font-mono bg-cyan/20 text-cyan px-2 py-0.5 rounded-full border border-cyan/40">Figma 390x2384 Replica</span>
+          </div>
+          <p class="text-[11px] text-slate-400">Pengembang Mandiri: <strong class="text-cyan">Alful Hilal (2023020100081)</strong> • TI D</p>
+        </div>
+      </div>
+
+      <!-- Mode Switcher -->
+      <div class="flex items-center space-x-2 bg-surface p-1 rounded-xl border border-reef">
+        <button onclick="setMode('canvas')" id="btn-mode-canvas" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan text-black shadow transition">
+          <i data-lucide="grid" class="w-3.5 h-3.5"></i>
+          <span>Figma 4 Layar Sekaligus</span>
+        </button>
+        <button onclick="setMode('interactive')" id="btn-mode-interactive" class="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition">
+          <i data-lucide="smartphone" class="w-3.5 h-3.5"></i>
+          <span>Mode Interaktif Satuan</span>
+        </button>
+      </div>
+
+      <!-- Swagger Link & Health -->
+      <div class="flex items-center space-x-3">
+        <div class="hidden md:flex items-center space-x-2 bg-surface px-3 py-1 rounded-lg border border-reef text-xs font-mono">
+          <span class="w-2 h-2 rounded-full bg-strike animate-ping"></span>
+          <span class="text-slate-300">FastAPI & PostGIS:</span>
+          <span class="text-cyan font-bold">14.2 ms</span>
+        </div>
+        <a href="/api/v1/docs" target="_blank" class="text-xs flex items-center space-x-1.5 bg-reef hover:bg-reefBorder text-cyan font-semibold px-3 py-1.5 rounded-lg border border-cyan/30 transition">
+          <i data-lucide="file-code-2" class="w-3.5 h-3.5"></i>
+          <span>API Docs</span>
+        </a>
+      </div>
+    </div>
+  </header>
+
+  <!-- Interactive Mode Tab Navigator (Only visible in single device mode) -->
+  <div id="interactive-nav" class="hidden bg-surface/90 border-b border-reef py-2 px-4 sticky top-[57px] z-40">
+    <div class="max-w-md mx-auto flex justify-between gap-1 text-xs font-semibold">
+      <button onclick="showSingleScreen(1)" id="subtab-1" class="px-3 py-1.5 rounded-lg bg-cyan text-black font-bold">1. Peta Radar</button>
+      <button onclick="showSingleScreen(2)" id="subtab-2" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">2. Detail Oseanografi</button>
+      <button onclick="showSingleScreen(3)" id="subtab-3" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">3. Laboratorium SMCA</button>
+      <button onclick="showSingleScreen(4)" id="subtab-4" class="px-3 py-1.5 rounded-lg text-slate-400 hover:text-white">4. Validasi Lapangan</button>
+    </div>
+  </div>
+
+  <!-- Main Viewport Container -->
+  <main class="flex-1 w-full p-4 md:p-8 flex justify-center">
+
+    <!-- CANVAS VIEW: 4 Screens Side-by-Side (Figma Layout) -->
+    <div id="canvas-container" class="flex flex-wrap lg:flex-nowrap gap-8 justify-center items-start overflow-x-auto pb-12 w-full max-w-[1720px]">
+      
+      <!-- ========================================== -->
+      <!-- SCREEN 1: PETA RADAR GEOSPASIAL (390 x 844) -->
+      <!-- ========================================== -->
+      <div id="frame-1" class="figma-frame">
+        <!-- Frame Label -->
+        <div class="bg-surface/80 border-b border-reef px-4 py-2 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+          <span class="flex items-center gap-1.5 text-cyan font-bold">
+            <i data-lucide="radar" class="w-3.5 h-3.5"></i> 1. Peta Radar Geospasial
+          </span>
+          <span>390 x 844</span>
+        </div>
+
+        <div class="p-4 space-y-3.5 flex-1 flex flex-col justify-between overflow-y-auto">
+          
+          <!-- Top Maritime Status Bar -->
+          <div class="bg-surface p-2.5 rounded-2xl border border-reef text-center">
+            <div class="flex items-center justify-between text-[10px] text-slate-400 mb-1 px-1">
+              <span class="font-bold text-white flex items-center gap-1">
+                <i data-lucide="map-pin" class="w-3 h-3 text-cyan"></i> Selat Madura (Pesisir Pamekasan)
+              </span>
+              <span class="font-mono text-cyan bg-cyan/15 px-1.5 py-0.5 rounded border border-cyan/30">4 GPS FIX</span>
+            </div>
+            
+            <!-- 4 Mini Telemetry Pills -->
+            <div class="grid grid-cols-4 gap-1.5 pt-1 text-[10px]">
+              <div class="bg-card p-1.5 rounded-xl border border-reef">
+                <span class="text-slate-400 block text-[9px]">PASUT</span>
+                <span class="font-mono font-bold text-cyan text-xs">+1.4m</span>
+              </div>
+              <div class="bg-card p-1.5 rounded-xl border border-reef">
+                <span class="text-slate-400 block text-[9px]">ANGIN</span>
+                <span class="font-mono font-bold text-white text-xs">9.2 kt</span>
+              </div>
+              <div class="bg-card p-1.5 rounded-xl border border-reef">
+                <span class="text-slate-400 block text-[9px]">OMBAK</span>
+                <span class="font-mono font-bold text-strike text-xs">0.6m</span>
+              </div>
+              <div class="bg-card p-1.5 rounded-xl border border-reef">
+                <span class="text-slate-400 block text-[9px]">ARUS</span>
+                <span class="font-mono font-bold text-amber text-xs">0.28m/s</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Radar Visualizer -->
+          <div class="relative w-full h-[240px] bg-[#070E1C] rounded-2xl border border-cyan/30 flex items-center justify-center overflow-hidden">
+            <div class="absolute top-2 left-2 z-10 text-[9px] font-mono text-cyan/70">
+              EPSG: 4326 | RADIUS: 5.000M
+            </div>
+
+            <!-- Rings -->
+            <div class="absolute w-[70px] h-[70px] rounded-full border border-cyan/20"></div>
+            <div class="absolute w-[140px] h-[140px] rounded-full border border-cyan/25"></div>
+            <div class="absolute w-[210px] h-[210px] rounded-full border border-cyan/40"></div>
+
+            <!-- Axis -->
+            <div class="absolute w-full h-[1px] bg-cyan/15"></div>
+            <div class="absolute h-full w-[1px] bg-cyan/15"></div>
+
+            <!-- Radar Cone Sweep -->
+            <div class="absolute inset-0 radar-sweep pointer-events-none rounded-full" style="background: conic-gradient(from 0deg, rgba(0,229,255,0.4) 0deg, transparent 65deg, transparent 360deg);"></div>
+
+            <!-- Center User Pin -->
+            <div class="w-3.5 h-3.5 rounded-full bg-amber z-20 shadow flex items-center justify-center">
+              <div class="w-1 h-1 rounded-full bg-black"></div>
+            </div>
+
+            <!-- Spot Pins on Radar -->
+            <div class="absolute top-[65px] right-[85px] z-20 text-[9px] bg-surface/90 border border-cyan px-1.5 py-0.5 rounded text-cyan font-bold shadow">
+              Branta 0.91
+            </div>
+            <div class="absolute bottom-[65px] right-[55px] z-20 text-[9px] bg-surface/90 border border-slate-500 px-1.5 py-0.5 rounded text-slate-300">
+              Talang Siring 0.86
+            </div>
+            <div class="absolute top-[110px] left-[55px] z-20 text-[9px] bg-surface/90 border border-slate-500 px-1.5 py-0.5 rounded text-slate-300">
+              Tlanakan 0.84
+            </div>
+            <div class="absolute bottom-[40px] left-[105px] z-20 text-[9px] bg-surface/90 border border-slate-500 px-1.5 py-0.5 rounded text-slate-300">
+              Jumiang 0.79
+            </div>
+          </div>
+
+          <!-- Floating Recommendation Sheet Card -->
+          <div class="bg-card p-3.5 rounded-2xl border-2 border-cyan/60 glow-cyan space-y-2.5">
+            <div class="flex items-center justify-between">
+              <div>
+                <span class="text-[9px] font-bold tracking-wider text-amber uppercase flex items-center gap-1">
+                  <i data-lucide="award" class="w-3 h-3 text-amber"></i> Rekomendasi Unggulan #1
+                </span>
+                <h3 class="text-sm font-bold text-white flex items-center gap-1">
+                  Branta Pesisir <i data-lucide="check-circle" class="w-3.5 h-3.5 text-cyan"></i>
+                </h3>
+                <p class="text-[10px] text-slate-400">2.1 Km dari Dermaga Branta (Pesisir Selatan)</p>
+              </div>
+              <div class="bg-cyan/15 border border-cyan/40 px-2 py-1 rounded-xl text-center">
+                <span class="text-[9px] text-slate-400 block">SKOR SMCA</span>
+                <span class="text-sm font-mono font-extrabold text-cyan">0.91<span class="text-[9px] text-slate-400">/1.0</span></span>
+              </div>
+            </div>
+
+            <!-- Jam Makan Ikan Banner -->
+            <div class="grid grid-cols-2 gap-2 text-[10px]">
+              <div class="bg-surface p-2 rounded-xl border border-reef">
+                <span class="text-amber font-bold block flex items-center gap-1">
+                  <i data-lucide="clock" class="w-3 h-3 text-amber"></i> 05:30 - 08:45 WIB
+                </span>
+                <span class="text-slate-400 text-[9px]">Fase Pasang Menuju Puncak</span>
+              </div>
+              <div class="bg-surface p-2 rounded-xl border border-reef">
+                <span class="text-cyan font-bold block">Kakap Merah</span>
+                <span class="text-slate-400 text-[9px]">Kerapu Karang, Tenggiri</span>
+              </div>
+            </div>
+
+            <!-- 5 Criteria Horizontal Bars -->
+            <div class="space-y-1 text-[9px]">
+              <div class="flex justify-between text-slate-400">
+                <span>Jarak (88%)</span>
+                <span>Arus (94%)</span>
+                <span>Cuaca (90%)</span>
+                <span>Karang (95%)</span>
+                <span>Ulasan (89%)</span>
+              </div>
+              <div class="grid grid-cols-5 gap-1 h-1.5 rounded-full overflow-hidden bg-surface">
+                <div class="bg-cyan" style="width: 88%"></div>
+                <div class="bg-cyan" style="width: 94%"></div>
+                <div class="bg-strike" style="width: 90%"></div>
+                <div class="bg-cyan" style="width: 95%"></div>
+                <div class="bg-amber" style="width: 89%"></div>
+              </div>
+            </div>
+
+            <!-- CTA Buttons -->
+            <div class="grid grid-cols-2 gap-2 pt-1">
+              <button onclick="showSingleScreen(2)" class="py-2 px-3 rounded-xl bg-surface border border-reef hover:border-cyan text-white text-xs font-semibold flex items-center justify-center gap-1 transition">
+                <i data-lucide="bar-chart-2" class="w-3 h-3 text-cyan"></i> Analisis Detail
+              </button>
+              <button onclick="alert('Memulai simulasi rute navigasi laut PostGIS ke Branta Pesisir!')" class="py-2 px-3 rounded-xl bg-cyan hover:bg-cyan/90 text-black text-xs font-bold flex items-center justify-center gap-1 transition">
+                <i data-lucide="navigation" class="w-3 h-3"></i> Mulai Navigasi
+              </button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Frame Bottom Bar -->
+        <div class="bg-surface/95 border-t border-reef py-2.5 px-6 flex justify-between items-center text-[10px] text-slate-400">
+          <div class="flex flex-col items-center text-cyan">
+            <i data-lucide="radar" class="w-4 h-4"></i>
+            <span class="font-bold text-[9px]">RADAR</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(2)">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+            <span class="text-[9px]">SPOT</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(3)">
+            <i data-lucide="sliders" class="w-4 h-4"></i>
+            <span class="text-[9px]">SMCA</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(4)">
+            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+            <span class="text-[9px]">VALIDASI</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SCREEN 2: DETAIL OSEANOGRAFI & SPOT        -->
+      <!-- ========================================== -->
+      <div id="frame-2" class="figma-frame">
+        <div class="bg-surface/80 border-b border-reef px-4 py-2 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+          <span class="flex items-center gap-1.5 text-cyan font-bold">
+            <i data-lucide="line-chart" class="w-3.5 h-3.5"></i> 2. Detail Oseanografi & Spot
+          </span>
+          <span>390 x Scroll</span>
+        </div>
+
+        <div class="p-4 space-y-4 flex-1 overflow-y-auto max-h-[750px]">
+          
+          <!-- Spot Header & Badges -->
+          <div class="flex items-start justify-between">
+            <div>
+              <span class="text-[10px] font-mono text-cyan bg-cyan/15 px-2 py-0.5 rounded border border-cyan/30">EPSG 4326 (WGS 84)</span>
+              <h2 class="text-base font-bold text-white mt-1">Branta Pesisir</h2>
+              <p class="text-[11px] text-slate-400">Kec. Tlanakan - Pesisir Selatan</p>
+            </div>
+            <div class="text-right">
+              <span class="text-[10px] text-slate-400 block">KEDALAMAN</span>
+              <span class="text-sm font-mono font-extrabold text-cyan">8.5<span class="text-[10px] font-normal">m</span></span>
+              <span class="text-[9px] bg-surface text-amber px-1.5 py-0.5 rounded border border-reef block mt-0.5">Karang & Rumput</span>
+            </div>
+          </div>
+
+          <!-- Big SMCA Score Card -->
+          <div class="bg-gradient-to-r from-card to-surface p-3.5 rounded-2xl border border-cyan/40 flex items-center justify-between">
+            <div>
+              <span class="text-[9px] text-slate-400 font-mono uppercase">Hasil Perhitungan SMCA</span>
+              <div class="flex items-baseline gap-1 mt-0.5">
+                <span class="text-2xl font-mono font-extrabold text-cyan">0.91</span>
+                <span class="text-xs text-slate-400">/ 1.0</span>
+              </div>
+              <span class="text-[10px] font-bold text-strike uppercase">SANGAT LAYAK (Prioritas #1)</span>
+            </div>
+            <div class="w-12 h-12 rounded-full border-4 border-cyan flex items-center justify-center font-mono font-bold text-xs text-cyan">
+              91%
+            </div>
+          </div>
+
+          <!-- 5 Kriteria SMCA Detailed Breakdown -->
+          <div class="space-y-2">
+            <div class="flex items-center justify-between text-xs font-bold text-white">
+              <span class="flex items-center gap-1"><i data-lucide="layers" class="w-3.5 h-3.5 text-cyan"></i> 5 Kriteria SMCA</span>
+              <span class="text-[10px] font-mono text-slate-400">S_i(t) = Σ w_j • f_j(c_ij)</span>
+            </div>
+
+            <!-- Card 1 -->
+            <div class="bg-card p-2.5 rounded-xl border border-reef space-y-1">
+              <div class="flex justify-between items-center text-[11px]">
+                <span class="font-bold text-white">1. Aksesibilitas Pelabuhan</span>
+                <span class="font-mono text-xs text-cyan font-bold">0.88</span>
+              </div>
+              <p class="text-[10px] text-slate-400">Cost • Bobot 0.20 • Jarak 2.1 Km dari GPS user</p>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="bg-card p-2.5 rounded-xl border border-reef space-y-1">
+              <div class="flex justify-between items-center text-[11px]">
+                <span class="font-bold text-white">2. Pasang & Arus Makan</span>
+                <span class="font-mono text-xs text-cyan font-bold">0.94</span>
+              </div>
+              <p class="text-[10px] text-slate-400">Benefit • Bobot 0.25 • Air pasang menuju puncak (Arus aktif)</p>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="bg-card p-2.5 rounded-xl border border-reef space-y-1">
+              <div class="flex justify-between items-center text-[11px]">
+                <span class="font-bold text-white">3. Angin & Signifikan Ombak</span>
+                <span class="font-mono text-xs text-strike font-bold">0.90</span>
+              </div>
+              <p class="text-[10px] text-slate-400">Cost • Bobot 0.20 • Kecepatan 9.2 knot, ombak 0.6m aman</p>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="bg-card p-2.5 rounded-xl border border-reef space-y-1">
+              <div class="flex justify-between items-center text-[11px]">
+                <span class="font-bold text-white">4. Substrat & Struktur Karang</span>
+                <span class="font-mono text-xs text-cyan font-bold">0.95</span>
+              </div>
+              <p class="text-[10px] text-slate-400">Benefit • Bobot 0.20 • Rumput Mutiara & Karang Koral</p>
+            </div>
+
+            <!-- Card 5 -->
+            <div class="bg-card p-2.5 rounded-xl border border-reef space-y-1">
+              <div class="flex justify-between items-center text-[11px]">
+                <span class="font-bold text-white">5. Validasi Nelayan Lapangan</span>
+                <span class="font-mono text-xs text-amber font-bold">0.89</span>
+              </div>
+              <p class="text-[10px] text-slate-400">Benefit • Bobot 0.15 • Skor 4.8 / 5.0 (28 Nelayan)</p>
+            </div>
+          </div>
+
+          <!-- Kurva Pasut 24 Jam Card -->
+          <div class="bg-card p-3 rounded-2xl border border-reef space-y-2">
+            <div class="flex justify-between items-center">
+              <h3 class="text-xs font-bold text-white flex items-center gap-1">
+                <i data-lucide="waves" class="w-3 h-3 text-cyan"></i> Kurva Pasang Surut (24 Jam)
+              </h3>
+              <span class="text-[9px] font-mono text-amber bg-amber/15 px-1.5 py-0.5 rounded border border-amber/30">STRIKE ZONE</span>
+            </div>
+            <p class="text-[9px] text-slate-400">Proyeksi elevasi pasut Selat Madura (BMKG Maritim Kalianget)</p>
+
+            <div class="h-32 w-full pt-1">
+              <canvas id="miniTideChart"></canvas>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-[10px] pt-1">
+              <div class="bg-surface p-2 rounded-xl border border-amber/40">
+                <span class="font-bold text-amber block">05:00 - 08:30 WIB</span>
+                <span class="text-slate-400 text-[9px]">Pasang Naik - Strike Cemerlang</span>
+              </div>
+              <div class="bg-surface p-2 rounded-xl border border-amber/40">
+                <span class="font-bold text-amber block">16:30 - 19:00 WIB</span>
+                <span class="text-slate-400 text-[9px]">Senja - Arus Menuju Puncak</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Target Spesies Aktual Grid 2x2 -->
+          <div class="space-y-2">
+            <h3 class="text-xs font-bold text-white">Target Spesies Aktual</h3>
+            <div class="grid grid-cols-2 gap-2 text-[10px]">
+              <div class="bg-card p-2 rounded-xl border border-reef">
+                <span class="font-bold text-white block">Kakap Merah</span>
+                <span class="text-cyan block text-[9px]">Kedalaman 8.5m</span>
+                <span class="text-slate-400 text-[9px]">Umpan: Udang Hidup</span>
+              </div>
+              <div class="bg-card p-2 rounded-xl border border-reef">
+                <span class="font-bold text-white block">Kerapu Lumpur</span>
+                <span class="text-cyan block text-[9px]">Kedalaman 6m</span>
+                <span class="text-slate-400 text-[9px]">Umpan: Belanak Tembang</span>
+              </div>
+              <div class="bg-card p-2 rounded-xl border border-reef">
+                <span class="font-bold text-white block">Ikan Sembilang</span>
+                <span class="text-cyan block text-[9px]">Kedalaman 4.5m</span>
+                <span class="text-slate-400 text-[9px]">Umpan: Cacing Laut</span>
+              </div>
+              <div class="bg-card p-2 rounded-xl border border-reef">
+                <span class="font-bold text-white block">Tongkol Karang</span>
+                <span class="text-cyan block text-[9px]">Kedalaman 12m</span>
+                <span class="text-slate-400 text-[9px]">Umpan: Metal Jig 40g</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Action Buttons -->
+          <div class="space-y-2 pt-1">
+            <button onclick="alert('Navigasi Haversine PostGIS diaktifkan!')" class="w-full py-2.5 bg-cyan hover:bg-cyan/90 text-black text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow">
+              <i data-lucide="navigation" class="w-3.5 h-3.5"></i> Buka Rute Navigasi (Haversine PostGIS)
+            </button>
+            <button onclick="showSingleScreen(4)" class="w-full py-2 bg-surface hover:bg-reef border border-reef text-white text-xs font-semibold rounded-xl flex items-center justify-center gap-1.5">
+              <i data-lucide="edit-3" class="w-3.5 h-3.5 text-cyan"></i> Input Log Tangkapan Lapangan
+            </button>
+          </div>
+        </div>
+
+        <!-- Frame Bottom Bar -->
+        <div class="bg-surface/95 border-t border-reef py-2.5 px-6 flex justify-between items-center text-[10px] text-slate-400">
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(1)">
+            <i data-lucide="radar" class="w-4 h-4"></i>
+            <span class="text-[9px]">RADAR</span>
+          </div>
+          <div class="flex flex-col items-center text-cyan">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+            <span class="font-bold text-[9px]">SPOT</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(3)">
+            <i data-lucide="sliders" class="w-4 h-4"></i>
+            <span class="text-[9px]">SMCA</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(4)">
+            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+            <span class="text-[9px]">VALIDASI</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ========================================== -->
+      <!-- SCREEN 3: LABORATORIUM ALGORITMA SMCA      -->
+      <!-- ========================================== -->
+      <div id="frame-3" class="figma-frame">
+        <div class="bg-surface/80 border-b border-reef px-4 py-2 flex items-center justify-between text-[11px] text-slate-400 font-mono">
+          <span class="flex items-center gap-1.5 text-cyan font-bold">
+            <i data-lucide="flask-conical" class="w-3.5 h-3.5"></i> 3. Param / Lab SMCA
+          </span>
+          <span>390 x Scroll</span>
+        </div>
+
+        <div class="p-4 space-y-4 flex-1 overflow-y-auto max-h-[750px]">
+          
+          <!-- Header Lab -->
+          <div>
+            <h2 class="text-sm font-bold text-white">Laboratorium Algoritma SMCA & Simulasi Sensitivitas Spasial</h2>
+            <p class="text-[10px] text-slate-400 mt-0.5">Spatial Multi-Criteria Analysis terintegrasi model oseanografi dinamis & kueri radius PostGIS.</p>
+          </div>
+
+          <!-- Formula Math Card -->
+          <div class="bg-card p-3 rounded-2xl border border-cyan/40 text-center space-y-1">
+            <span class="text-[9px] font-mono text-cyan tracking-wider uppercase">MODEL FORMULA TERINTEGRASI:</span>
+            <div class="text-sm font-mono font-bold text-white bg-surface/80 py-1.5 px-3 rounded-lg border border-reef">
+              S_i(t) = Σ w_j • f_j(c_ij(t))
+            </div>
+            <p class="text-[9px] text-slate-400">w_j = bobot kriteria dinamis real-time (Σ w = 1.0)</p>
+          </div>
+
+          <!-- Filter Geospasial Buffer PostGIS -->
+          <div class="space-y-1.5">
+            <span class="text-[10px] font-bold text-white flex items-center gap-1">
+              <i data-lucide="crosshair" class="w-3 h-3 text-cyan"></i> Filter Geospasial PostGIS:
+            </span>
+            <div class="grid grid-cols-4 gap-1.5 text-[10px] font-mono">
+              <button onclick="setBuffer(5)" id="btn-buf-5" class="py-1.5 rounded-lg bg-cyan text-black font-bold">5 KM</button>
+              <button onclick="setBuffer(10)" id="btn-buf-10" class="py-1.5 rounded-lg bg-surface border border-reef text-slate-300">10 KM</button>
+              <button onclick="setBuffer(25)" id="btn-buf-25" class="py-1.5 rounded-lg bg-surface border border-reef text-slate-300">25 KM</button>
+              <button onclick="setBuffer(50)" id="btn-buf-50" class="py-1.5 rounded-lg bg-surface border border-reef text-slate-300">50 KM</button>
+            </div>
+          </div>
+
+          <!-- 5 Slider Bobot Kriteria -->
+          <div class="space-y-3 bg-card p-3 rounded-2xl border border-reef">
+            <div class="flex items-center justify-between text-xs font-bold text-white">
+              <span>5 Bobot Kriteria Matematis</span>
+              <span class="text-[10px] font-mono text-cyan">Sensitivitas</span>
+            </div>
+
+            <!-- Slider 1 -->
+            <div class="space-y-1 text-[10px]">
+              <div class="flex justify-between text-slate-300">
+                <span>1. Aksesibilitas & Jarak (Cost)</span>
+                <span class="font-mono text-cyan font-bold" id="lab-w1-val">0.20</span>
+              </div>
+              <input type="range" min="0" max="100" value="20" class="w-full accent-cyan cursor-pointer" id="lab-w1" oninput="onLabWeightChange()">
+            </div>
+
+            <!-- Slider 2 -->
+            <div class="space-y-1 text-[10px]">
+              <div class="flex justify-between text-slate-300">
+                <span>2. Pasang Surut & Arus Makan (Benefit)</span>
+                <span class="font-mono text-cyan font-bold" id="lab-w2-val">0.25</span>
+              </div>
+              <input type="range" min="0" max="100" value="25" class="w-full accent-cyan cursor-pointer" id="lab-w2" oninput="onLabWeightChange()">
+            </div>
+
+            <!-- Slider 3 -->
+            <div class="space-y-1 text-[10px]">
+              <div class="flex justify-between text-slate-300">
+                <span>3. Kecepatan Angin & Gelombang (Cost)</span>
+                <span class="font-mono text-cyan font-bold" id="lab-w3-val">0.20</span>
+              </div>
+              <input type="range" min="0" max="100" value="20" class="w-full accent-cyan cursor-pointer" id="lab-w3" oninput="onLabWeightChange()">
+            </div>
+
+            <!-- Slider 4 -->
+            <div class="space-y-1 text-[10px]">
+              <div class="flex justify-between text-slate-300">
+                <span>4. Tipe Substrat / Karang (Benefit)</span>
+                <span class="font-mono text-cyan font-bold" id="lab-w4-val">0.20</span>
+              </div>
+              <input type="range" min="0" max="100" value="20" class="w-full accent-cyan cursor-pointer" id="lab-w4" oninput="onLabWeightChange()">
+            </div>
+
+            <!-- Slider 5 -->
+            <div class="space-y-1 text-[10px]">
+              <div class="flex justify-between text-slate-300">
+                <span>5. Skor Komunitas & Ulasan (Benefit)</span>
+                <span class="font-mono text-cyan font-bold" id="lab-w5-val">0.15</span>
+              </div>
+              <input type="range" min="0" max="100" value="15" class="w-full accent-cyan cursor-pointer" id="lab-w5" oninput="onLabWeightChange()">
+            </div>
+          </div>
+
+          <!-- Komparasi Live Ranking Spot -->
+          <div class="space-y-2">
+            <div class="flex justify-between items-center text-xs font-bold text-white">
+              <span>Komparasi Live Ranking Spot</span>
+              <span class="text-[9px] font-mono text-amber">Auto-Rank</span>
+            </div>
+            <div id="figma-live-ranking" class="space-y-1.5 text-[11px]">
+              <!-- Populated by JS -->
+            </div>
+          </div>
+
+          <!-- PostGIS GiST Runtime Comparison Box -->
+          <div class="bg-surface p-3 rounded-2xl border border-reef space-y-2">
+            <span class="text-[10px] font-bold text-cyan block uppercase tracking-wider">PostGIS ST_DWithin GIST Runtime</span>
+            <div class="grid grid-cols-2 gap-2 text-center text-xs font-mono">
+              <div class="bg-card p-2 rounded-xl border border-cyan/40">
+                <span class="text-[9px] text-slate-400 block font-sans">Indexed GiST</span>
+                <span class="text-cyan font-bold text-sm">14.2 ms</span>
+                <span class="text-[8px] text-strike block font-sans">6.2x Lebih Cepat</span>
+              </div>
+              <div class="bg-card p-2 rounded-xl border border-reef">
+                <span class="text-[9px] text-slate-400 block font-sans">Non-Indexed (SeqScan)</span>
+                <span class="text-slate-400 font-bold text-sm">88.5 ms</span>
+                <span class="text-[8px] text-danger block font-sans">Tanpa Indeks Spasial</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Buttons -->
+          <div class="space-y-2 pt-1">
+            <button onclick="alert('Pembobotan baru diterapkan ke seluruh endpoint API!');" class="w-full py-2.5 bg-cyan hover:bg-cyan/90 text-black text-xs font-bold rounded-xl flex items-center justify-center gap-1.5">
+              <i data-lucide="check" class="w-3.5 h-3.5"></i> Terapkan Pembobotan Baru
+            </button>
+            <button onclick="resetLabWeights()" class="w-full py-2 text-slate-400 hover:text-white text-xs font-semibold">
+              ↺ Reset ke Bobot Riset Default
+            </button>
+          </div>
+        </div>
+
+        <!-- Frame Bottom Bar -->
+        <div class="bg-surface/95 border-t border-reef py-2.5 px-6 flex justify-between items-center text-[10px] text-slate-400">
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(1)">
+            <i data-lucide="radar" class="w-4 h-4"></i>
+            <span class="text-[9px]">RADAR</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(2)">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+            <span class="text-[9px]">SPOT</span>
+          </div>
+          <div class="flex flex-col items-center text-cyan">
+            <i data-lucide="sliders" class="w-4 h-4"></i>
+            <span class="font-bold text-[9px]">SMCA</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(4)">
+            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+            <span class="text-[9px]">VALIDASI</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ======================================================= -->
+      <!-- SCREEN 4: INSTRUMEN VALIDASI LAPANGAN & COMMUNITY (FOCUS) -->
+      <!-- ======================================================= -->
+      <div id="frame-4" class="figma-frame active-frame">
+        <div class="bg-indigo-600/20 border-b border-indigo-500/40 px-4 py-2 flex items-center justify-between text-[11px] text-indigo-300 font-mono">
+          <span class="flex items-center gap-1.5 text-white font-bold">
+            <i data-lucide="check-square" class="w-3.5 h-3.5 text-indigo-400"></i> 4. Valida... (390 x 2384)
+          </span>
+          <span class="bg-indigo-500/30 text-white px-2 py-0.5 rounded text-[10px]">Active Focus</span>
+        </div>
+
+        <div class="p-4 space-y-4 flex-1 overflow-y-auto max-h-[750px]">
+          
+          <!-- Header Validasi -->
+          <div>
+            <span class="text-[9px] font-mono text-cyan bg-cyan/15 px-2 py-0.5 rounded border border-cyan/30">BUKTI LAPANGAN RIIL</span>
+            <h2 class="text-sm font-bold text-white mt-1">Instrumen Validasi Lapangan & Community Feedback</h2>
+            <p class="text-[10px] text-slate-400 mt-0.5">Pengujian akurasi model SMCA & verifikasi ground truth empiris nelayan pesisir Pamekasan.</p>
+          </div>
+
+          <!-- 3 Metrik Ilmiah Utama (SUS, Cronbach, Spearman) -->
+          <div class="grid grid-cols-3 gap-2 text-center">
+            <div class="bg-card p-2 rounded-xl border border-reef">
+              <span class="text-[8px] text-slate-400 block uppercase">Skor SUS</span>
+              <span class="text-base font-mono font-bold text-strike">82.5<span class="text-[9px] text-slate-400">/100</span></span>
+              <span class="text-[8px] text-slate-400 block">Grade A • Excellent</span>
+            </div>
+            <div class="bg-card p-2 rounded-xl border border-reef">
+              <span class="text-[8px] text-slate-400 block uppercase">Cronbach's α</span>
+              <span class="text-base font-mono font-bold text-cyan">0.84<span class="text-[9px] text-slate-400">/1.0</span></span>
+              <span class="text-[8px] text-slate-400 block">Sangat Reliabel</span>
+            </div>
+            <div class="bg-card p-2 rounded-xl border border-reef">
+              <span class="text-[8px] text-slate-400 block uppercase">Spearman ρ</span>
+              <span class="text-base font-mono font-bold text-amber">0.89</span>
+              <span class="text-[8px] text-slate-400 block">Korelasi Kuat</span>
+            </div>
+          </div>
+
+          <!-- Formulir Log Validasi (Ground Truth Tagging) -->
+          <div class="bg-card p-3 rounded-2xl border border-reef space-y-3 text-[11px]">
+            <div class="flex items-center justify-between">
+              <span class="font-bold text-white flex items-center gap-1">
+                <i data-lucide="file-check-2" class="w-3.5 h-3.5 text-cyan"></i> Formulir Log Validasi
+              </span>
+              <span class="text-[9px] font-mono text-strike bg-strike/15 px-1.5 py-0.5 rounded border border-strike/30">ONLINE DATA ENTRY</span>
+            </div>
+
+            <!-- Pilih Ground Truth Site -->
+            <div>
+              <label class="text-[10px] text-slate-400 block mb-1">PILIH GROUND TRUTH SITE (PESISIR PAMEKASAN):</label>
+              <select id="figma-ground-site" class="w-full bg-surface border border-reef rounded-xl p-2 text-white text-[11px] focus:outline-none focus:border-cyan">
+                <option value="spot-002">Pantai Talang Siring (07°10'02"S 113°34'15"E)</option>
+                <option value="spot-001">Branta Pesisir (07°13'12"S 113°28'50"E)</option>
+                <option value="spot-003">Tlanakan Dermaga (07°12'54"S 113°28'04"E)</option>
+                <option value="spot-004">Pantai Jumiang (07°14'04"S 113°33'55"E)</option>
+                <option value="spot-005">Pasean Laut Jawa (06°53'00"S 113°32'06"E)</option>
+              </select>
+            </div>
+
+            <!-- Kuesioner Skala Likert 1-5 -->
+            <div class="space-y-2.5 pt-1">
+              <span class="text-[9px] font-bold text-cyan uppercase tracking-wider block">Kuesioner Instrumen Validasi (1 - Sangat Buruk s/d 5 - Sangat Tepat)</span>
+              
+              <!-- Q1 -->
+              <div class="space-y-1">
+                <span class="text-[10px] text-slate-300 block">1. Kesesuaian prediksi pasang surut dengan kondisi riil di lapangan</span>
+                <div class="flex justify-between gap-1">
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">1</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">2</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">3</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">4</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-cyan text-black font-bold text-[10px]">5</button>
+                </div>
+              </div>
+
+              <!-- Q2 -->
+              <div class="space-y-1">
+                <span class="text-[10px] text-slate-300 block">2. Keakuratan rekomendasi spot terhadap hasil strike</span>
+                <div class="flex justify-between gap-1">
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">1</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">2</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">3</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-cyan text-black font-bold text-[10px]">4</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">5</button>
+                </div>
+              </div>
+
+              <!-- Q3 -->
+              <div class="space-y-1">
+                <span class="text-[10px] text-slate-300 block">3. Tingkat kemudahan sensitivitas model perhitungan jarak geospasial</span>
+                <div class="flex justify-between gap-1">
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">1</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">2</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">3</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]">4</button>
+                  <button type="button" class="likert-btn w-7 h-7 rounded-lg bg-cyan text-black font-bold text-[10px]">5</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Catch Log Samples -->
+            <div class="pt-1 space-y-1.5">
+              <span class="text-[9px] font-bold text-amber uppercase tracking-wider block">Catch Log (Ground Truth Samples)</span>
+              <div class="grid grid-cols-2 gap-2 text-center">
+                <div class="bg-surface p-2 rounded-xl border border-reef">
+                  <span class="text-[9px] text-slate-400 block">TOTAL BOBOT (KG)</span>
+                  <span class="font-mono text-sm font-bold text-cyan">4.8 <span class="text-[9px]">KG</span></span>
+                </div>
+                <div class="bg-surface p-2 rounded-xl border border-reef">
+                  <span class="text-[9px] text-slate-400 block">JUMLAH EKOR (STRIKE)</span>
+                  <span class="font-mono text-sm font-bold text-cyan">7 <span class="text-[9px]">EKOR</span></span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Upload Photo with EXIF GPS -->
+            <div class="border-2 border-dashed border-reef hover:border-cyan/50 p-3 rounded-xl text-center bg-surface/50 cursor-pointer transition">
+              <i data-lucide="camera" class="w-5 h-5 mx-auto text-cyan mb-1"></i>
+              <span class="text-[10px] font-bold text-white block">Ambil Foto atau Unggah Bukti Tangkapan</span>
+              <span class="text-[8px] text-slate-400 block">Metadata EXIF GPS (Lat/Long) akan diekstrak otomatis</span>
+              <span class="text-[8px] font-mono text-strike mt-0.5 inline-flex items-center gap-1">
+                <i data-lucide="check" class="w-2.5 h-2.5"></i> Geo-tagging Enabled
+              </span>
+            </div>
+
+            <!-- Submit Button -->
+            <button onclick="alert('Data validasi riset lapangan berhasil dikirim dan disinkronisasi ke PostgreSQL PostGIS!');" class="w-full py-2.5 bg-cyan hover:bg-cyan/90 text-black text-xs font-bold rounded-xl flex items-center justify-center gap-1.5 shadow">
+              <i data-lucide="send" class="w-3.5 h-3.5"></i> KIRIM DATA VALIDASI RISET (SYNC TO POSTGIS)
+            </button>
+          </div>
+
+          <!-- Validasi Komunitas Terverifikasi (3 Cards) -->
+          <div class="space-y-2.5">
+            <span class="text-xs font-bold text-white flex items-center gap-1">
+              <i data-lucide="users" class="w-3.5 h-3.5 text-cyan"></i> Validasi Komunitas Terverifikasi
+            </span>
+
+            <!-- Review 1: Mohammad Rasyid -->
+            <div class="bg-card p-3 rounded-2xl border border-reef text-[10px] space-y-1">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5">
+                  <div class="w-6 h-6 rounded-full bg-cyan/20 border border-cyan/40 flex items-center justify-center text-cyan font-bold text-[9px]">MR</div>
+                  <div>
+                    <span class="font-bold text-white block">Mohammad Rasyid</span>
+                    <span class="text-[8px] text-slate-400">Komunitas Angler Pamekasan Selatan</span>
+                  </div>
+                </div>
+                <span class="text-[8px] font-mono text-strike bg-strike/15 px-1 rounded border border-strike/30">VERIFIED GPS</span>
+              </div>
+              <div class="text-slate-300 pt-0.5">
+                <span class="text-amber font-semibold">Pantai Talang Siring</span> • Hasil: <span class="text-white font-mono font-bold">8 Ekor - 5.2 kg</span>
+              </div>
+              <p class="text-[9px] text-slate-300 italic">"Prediksi waktu pasang dan jam pasut cocok sekali jam 05:30. Algoritma SMCA merekomendasikan spot karang tubir 800 meter dari bibir pantai dan langsung strike Kakap Merah 2.3 kg."</p>
+            </div>
+
+            <!-- Review 2: H. Zainul Arifin -->
+            <div class="bg-card p-3 rounded-2xl border border-reef text-[10px] space-y-1">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5">
+                  <div class="w-6 h-6 rounded-full bg-amber/20 border border-amber/40 flex items-center justify-center text-amber font-bold text-[9px]">ZA</div>
+                  <div>
+                    <span class="font-bold text-white block">H. Zainul Arifin</span>
+                    <span class="text-[8px] text-slate-400">Nelayan Tradisional Branta</span>
+                  </div>
+                </div>
+                <span class="text-[8px] font-mono text-strike bg-strike/15 px-1 rounded border border-strike/30">VERIFIED GPS</span>
+              </div>
+              <div class="text-slate-300 pt-0.5">
+                <span class="text-amber font-semibold">Branta Pesisir</span> • Hasil: <span class="text-white font-mono font-bold">5 Ekor - 3.8 kg</span>
+              </div>
+              <p class="text-[9px] text-slate-300 italic">"Aplikasi sangat membantu memotong cara perahu lewat ke karang biasanya. Terbukti suhu sekitar 29 C dan ombak gelombang tenang akurat."</p>
+            </div>
+
+            <!-- Review 3: Subhan Efendi -->
+            <div class="bg-card p-3 rounded-2xl border border-reef text-[10px] space-y-1">
+              <div class="flex items-center justify-between">
+                <div class="flex items-center gap-1.5">
+                  <div class="w-6 h-6 rounded-full bg-cyan/20 border border-cyan/40 flex items-center justify-center text-cyan font-bold text-[9px]">SE</div>
+                  <div>
+                    <span class="font-bold text-white block">Subhan Efendi</span>
+                    <span class="text-[8px] text-slate-400">Pasean Shore Jigging Club</span>
+                  </div>
+                </div>
+                <span class="text-[8px] font-mono text-strike bg-strike/15 px-1 rounded border border-strike/30">VERIFIED GPS</span>
+              </div>
+              <div class="text-slate-300 pt-0.5">
+                <span class="text-amber font-semibold">Pasean Laut Jawa</span> • Hasil: <span class="text-white font-mono font-bold">5 Ekor - 6.1 kg</span>
+              </div>
+              <p class="text-[9px] text-slate-300 italic">"Kondisi substrat karang dalam di Pasean terdeteksi dengan baik pada peta PostGIS. Rekomendasi umpan jig 40g sangat cocok dengan arus pasang."</p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Frame Bottom Bar -->
+        <div class="bg-surface/95 border-t border-reef py-2.5 px-6 flex justify-between items-center text-[10px] text-slate-400">
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(1)">
+            <i data-lucide="radar" class="w-4 h-4"></i>
+            <span class="text-[9px]">RADAR</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(2)">
+            <i data-lucide="map-pin" class="w-4 h-4"></i>
+            <span class="text-[9px]">SPOT</span>
+          </div>
+          <div class="flex flex-col items-center hover:text-white cursor-pointer" onclick="showSingleScreen(3)">
+            <i data-lucide="sliders" class="w-4 h-4"></i>
+            <span class="text-[9px]">SMCA</span>
+          </div>
+          <div class="flex flex-col items-center text-cyan">
+            <i data-lucide="clipboard-check" class="w-4 h-4"></i>
+            <span class="font-bold text-[9px]">VALIDASI</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </main>
+
+  <footer class="border-t border-reef/80 bg-abyss py-3 px-4 text-center text-xs text-slate-500">
+    <p>Desain Antarmuka Mobile Geospasial SMCA • <strong class="text-cyan">Alful Hilal</strong> (NPM: 2023020100081) • TI D</p>
+  </footer>
+
+  <!-- Script Logic -->
+  <script>
+    lucide.createIcons();
+
+    // Data spot awal
+    const spotsList = [
+      { name: "Branta Pesisir", district: "Tlanakan", score: 0.91, grade: "Grade A", desc: "Karang Tubir" },
+      { name: "Talang Siring", district: "Larangan", score: 0.86, grade: "Grade A", desc: "Karang Tengah" },
+      { name: "Tlanakan Dermaga", district: "Tlanakan", score: 0.84, grade: "Grade B", desc: "Karang Dangkal" },
+      { name: "Jumiang Tebing", district: "Pademawu", score: 0.79, grade: "Grade B", desc: "Karang Cadas" }
+    ];
+
+    function renderFigmaRanking(spots) {
+      const container = document.getElementById('figma-live-ranking');
+      container.innerHTML = '';
+      spots.forEach((s, idx) => {
+        const item = document.createElement('div');
+        item.className = 'bg-surface p-2.5 rounded-xl border border-reef flex items-center justify-between';
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="w-5 h-5 rounded-full ${idx === 0 ? 'bg-amber text-black' : 'bg-surface text-cyan border border-cyan/40'} flex items-center justify-center font-mono font-bold text-[10px]">
+              #${idx + 1}
+            </span>
+            <div>
+              <span class="font-bold text-white block text-xs">${s.name}</span>
+              <span class="text-[9px] text-slate-400">Kec. ${s.district} • ${s.desc}</span>
+            </div>
+          </div>
+          <div class="text-right font-mono">
+            <span class="text-xs font-bold ${idx === 0 ? 'text-amber' : 'text-cyan'}">${Number(s.score).toFixed(2)}</span>
+            <span class="text-[8px] text-slate-400 block">${s.grade}</span>
+          </div>
+        `;
+        container.appendChild(item);
+      });
+    }
+
+    renderFigmaRanking(spotsList);
+
+    // Chart.js Mini Tide Curve
+    let miniChart = null;
+    function initMiniChart() {
+      const ctx = document.getElementById('miniTideChart')?.getContext('2d');
+      if (!ctx) return;
+      const hours = ['00:00', '03:00', '06:00', '09:00', '12:00', '15:00', '18:00', '21:00', '24:00'];
+      const elevations = [-0.8, -0.2, 1.4, 0.8, -0.6, 0.2, 1.2, 0.4, -0.7];
+
+      miniChart = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: hours,
+          datasets: [{
+            data: elevations,
+            borderColor: '#00E5FF',
+            backgroundColor: 'rgba(0, 229, 255, 0.15)',
+            borderWidth: 2,
+            fill: true,
+            tension: 0.4,
+            pointBackgroundColor: '#00E5FF',
+            pointRadius: 2.5
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              grid: { color: '#1C2E52' },
+              ticks: { color: '#8FA0C0', font: { size: 9 } }
+            },
+            y: {
+              grid: { color: '#1C2E52' },
+              ticks: { color: '#8FA0C0', font: { size: 9 } },
+              suggestedMin: -1.2,
+              suggestedMax: 1.6
+            }
+          }
+        }
+      });
+    }
+    setTimeout(initMiniChart, 200);
+
+    // Buffer Button Handler
+    function setBuffer(km) {
+      [5, 10, 25, 50].forEach(k => {
+        const btn = document.getElementById(`btn-buf-${k}`);
+        if (k === km) {
+          btn.className = 'py-1.5 rounded-lg bg-cyan text-black font-bold';
+        } else {
+          btn.className = 'py-1.5 rounded-lg bg-surface border border-reef text-slate-300';
+        }
+      });
+    }
+
+    // Lab Weights Calculation
+    function onLabWeightChange() {
+      const w1 = parseInt(document.getElementById('lab-w1').value);
+      const w2 = parseInt(document.getElementById('lab-w2').value);
+      const w3 = parseInt(document.getElementById('lab-w3').value);
+      const w4 = parseInt(document.getElementById('lab-w4').value);
+      const w5 = parseInt(document.getElementById('lab-w5').value);
+
+      document.getElementById('lab-w1-val').innerText = (w1 / 100).toFixed(2);
+      document.getElementById('lab-w2-val').innerText = (w2 / 100).toFixed(2);
+      document.getElementById('lab-w3-val').innerText = (w3 / 100).toFixed(2);
+      document.getElementById('lab-w4-val').innerText = (w4 / 100).toFixed(2);
+      document.getElementById('lab-w5-val').innerText = (w5 / 100).toFixed(2);
+
+      const tot = w1 + w2 + w3 + w4 + w5 || 100;
+      const recomputed = [
+        { name: "Branta Pesisir", district: "Tlanakan", desc: "Karang Tubir", score: (0.88*w1 + 0.94*w2 + 0.90*w3 + 0.95*w4 + 0.89*w5)/tot, grade: "Grade A" },
+        { name: "Talang Siring", district: "Larangan", desc: "Karang Tengah", score: (0.85*w1 + 0.88*w2 + 0.86*w3 + 0.87*w4 + 0.85*w5)/tot, grade: "Grade A" },
+        { name: "Tlanakan Dermaga", district: "Tlanakan", desc: "Karang Dangkal", score: (0.94*w1 + 0.78*w2 + 0.88*w3 + 0.75*w4 + 0.80*w5)/tot, grade: "Grade B" },
+        { name: "Jumiang Tebing", district: "Pademawu", desc: "Karang Cadas", score: (0.65*w1 + 0.85*w2 + 0.80*w3 + 0.90*w4 + 0.79*w5)/tot, grade: "Grade B" }
+      ];
+      recomputed.sort((a,b) => b.score - a.score);
+      renderFigmaRanking(recomputed);
+    }
+
+    function resetLabWeights() {
+      document.getElementById('lab-w1').value = 20;
+      document.getElementById('lab-w2').value = 25;
+      document.getElementById('lab-w3').value = 20;
+      document.getElementById('lab-w4').value = 20;
+      document.getElementById('lab-w5').value = 15;
+      onLabWeightChange();
+    }
+
+    // Likert button active state
+    document.querySelectorAll('.likert-btn').forEach(btn => {
+      btn.addEventListener('click', function() {
+        const parent = this.parentElement;
+        parent.querySelectorAll('.likert-btn').forEach(b => {
+          b.className = 'likert-btn w-7 h-7 rounded-lg bg-surface border border-reef text-[10px]';
+        });
+        this.className = 'likert-btn w-7 h-7 rounded-lg bg-cyan text-black font-bold text-[10px]';
+      });
+    });
+
+    // View Mode Switcher
+    function setMode(mode) {
+      const btnCanvas = document.getElementById('btn-mode-canvas');
+      const btnInteractive = document.getElementById('btn-mode-interactive');
+      const interactiveNav = document.getElementById('interactive-nav');
+      const frames = [1, 2, 3, 4].map(n => document.getElementById(`frame-${n}`));
+
+      if (mode === 'canvas') {
+        btnCanvas.className = 'flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan text-black shadow transition';
+        btnInteractive.className = 'flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition';
+        interactiveNav.classList.add('hidden');
+        frames.forEach(f => f.classList.remove('hidden'));
+        document.getElementById('canvas-container').classList.remove('justify-center');
+      } else {
+        btnInteractive.className = 'flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-cyan text-black shadow transition';
+        btnCanvas.className = 'flex items-center space-x-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold text-slate-300 hover:text-white transition';
+        interactiveNav.classList.remove('hidden');
+        showSingleScreen(4); // Default to screen 4 as in the user screenshot
+      }
+    }
+
+    function showSingleScreen(screenNum) {
+      [1, 2, 3, 4].forEach(n => {
+        const frame = document.getElementById(`frame-${n}`);
+        const subtab = document.getElementById(`subtab-${n}`);
+        if (n === screenNum) {
+          frame.classList.remove('hidden');
+          frame.scrollIntoView({ behavior: 'smooth', block: 'start', inline: 'center' });
+          if (subtab) subtab.className = 'px-3 py-1.5 rounded-lg bg-cyan text-black font-bold';
+        } else {
+          // If in interactive mode, hide others
+          if (!document.getElementById('interactive-nav').classList.contains('hidden')) {
+            frame.classList.add('hidden');
+          }
+          if (subtab) subtab.className = 'px-3 py-1.5 rounded-lg text-slate-400 hover:text-white';
+        }
+      });
+    }
+  </script>
+</body>
+</html>

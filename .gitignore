@@ -1,0 +1,31 @@
+# Virtual Environment Python
+backend/venv/
+venv/
+ENV/
+env/
+
+# Python Cache
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+
+# Logs & Temp
+*.log
+backend/app/static/screen*.png
+
+# Flutter / Dart
+mobile/.dart_tool/
+mobile/build/
+mobile/.flutter-plugins
+mobile/.flutter-plugins-dependencies
+mobile/.packages
+mobile/.pub-cache/
+mobile/.pub/
+
+# IDE & OS
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
